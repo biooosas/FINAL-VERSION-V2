@@ -1,295 +1,205 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Windows-style Media Player — 8D + Editor</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom Media Player with Community</title>
   <style>
-    :root{ --bg-colors: #071028, #071733; --panel: rgba(0,0,0,0.6); --accent:#1f6feb; --muted:#94a3b8; --glass:rgba(255,255,255,0.05); }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;font-family:Segoe UI, Roboto, Arial, sans-serif;background:linear-gradient(270deg,var(--bg-colors));background-size:600% 600%;animation:bgAnim 20s ease infinite;color:#e6edf3;}
-    @keyframes bgAnim{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-    .player{width:1000px;max-width:98%;margin:24px auto;border-radius:12px;overflow:hidden;display:grid;grid-template-columns:260px 1fr 260px;gap:12px;padding:16px;background:var(--panel);backdrop-filter:blur(8px);}
-    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:8px;padding:12px;color:inherit}
-    .left,.right{min-height:520px}
-    h3{margin:6px 0 12px;font-size:13px;color:var(--muted)}
-    .library-list,.playlist-list{max-height:320px;overflow:auto;padding:6px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(255,255,255,0.02));}
-    .track{padding:8px;border-radius:6px;display:flex;align-items:center;gap:8px;cursor:pointer}
-    .track:hover{background:rgba(255,255,255,0.025)}
-    .track.active{outline:1px solid rgba(255,255,255,0.06);background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))}
-    .controls{display:flex;align-items:center;gap:12px;margin-top:18px}
-    button{background:transparent;border:0;color:inherit;padding:8px;border-radius:8px;cursor:pointer}
-    .btn-big{background:linear-gradient(90deg,var(--accent),#60a5fa);padding:10px 16px;color:#04293a;font-weight:600;border-radius:10px}
-    .big-art{width:320px;height:320px;border-radius:8px;background:var(--glass);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px}
-    .progress{width:100%;height:10px;background:rgba(255,255,255,0.06);border-radius:10px;margin-top:14px;cursor:pointer;position:relative}
-    .progress>.bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#60a5fa);border-radius:10px}
-    .small{font-size:13px;color:var(--muted)}
-    .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .search{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
-    .settings{margin-top:12px;padding:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:8px}
-    #editor{width:100%;height:180px;background:transparent;border-radius:8px;border:1px solid rgba(255,255,255,0.06);margin-top:10px;cursor:crosshair}
-    .toggle{display:inline-flex;align-items:center;gap:8px}
-    .muted-note{font-size:12px;color:var(--muted);margin-top:6px}
-    @media(max-width:980px){.player{grid-template-columns:1fr;}}
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: black;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: rgba(0,0,0,0.7);
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 250px;
+      background: rgba(30,30,30,0.8);
+      padding: 1rem;
+      overflow-y: auto;
+    }
+    .content {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+    .tab {
+      margin-bottom: .5rem;
+      cursor: pointer;
+      padding: .5rem;
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+    }
+    .tab.active {
+      background: rgba(255,255,255,0.3);
+    }
+    .hidden { display: none; }
+    .song-card {
+      background: rgba(255,255,255,0.05);
+      margin: .5rem 0;
+      padding: .5rem;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    button {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      padding: .3rem .6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
+    #publishModal {
+      position: fixed;
+      top: 0; left: 0; right:0; bottom:0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    #publishModal .modal-content {
+      background: #222;
+      padding: 1rem;
+      border-radius: 8px;
+      width: 300px;
+    }
+    #publishModal input, #publishModal textarea {
+      width: 100%;
+      margin-bottom: .5rem;
+      padding: .4rem;
+    }
   </style>
 </head>
 <body>
-  <div class="player">
-    <div class="panel left">
-      <h3>Library</h3>
-      <div class="top-actions">
-        <label class="btn">📁 <input id="fileInput" type="file" multiple accept="audio/*" style="display:none">Add files</label>
-        <button id="addYoutubeBtn">▶ Add YouTube</button>
-        <button id="saveExport">⬇ Export</button>
+  <header>
+    <h1>🎵 My Media Player</h1>
+  </header>
+  <main>
+    <aside class="sidebar">
+      <div class="tab active" data-tab="library">Library</div>
+      <div class="tab" data-tab="playlist">Playlist</div>
+      <div class="tab" data-tab="community">Community</div>
+    </aside>
+    <section class="content">
+      <div id="library" class="panel">Your library UI here...</div>
+      <div id="playlist" class="panel hidden">Your playlist UI here...</div>
+      <div id="community" class="panel hidden">
+        <button onclick="openPublishModal()">📢 Publish Your Music</button>
+        <div id="communityList">Loading...</div>
       </div>
-      <div style="margin-top:10px"><input id="filter" class="search" placeholder="Filter library..."></div>
-      <div class="library-list" id="libraryList"></div>
+    </section>
+  </main>
 
-      <div class="settings">
-        <h3>Background</h3>
-        <select id="bgPreset">
-          <option value="default">Default</option>
-          <option value="red">Black → Red → Black</option>
-          <option value="green">Black → Green → Black</option>
-          <option value="gray">Black → Gray → Black</option>
-          <option value="blue">Black → Blue → Black</option>
-          <option value="purple">Black → Purple → Black</option>
-          <option value="custom">Custom</option>
-        </select>
-        <div id="customColors" style="display:none;margin-top:8px">
-          <label>1 <input type="color" id="color1" value="#000000"></label>
-          <label>2 <input type="color" id="color2" value="#ff0000"></label>
-          <label>3 <input type="color" id="color3" value="#000000"></label>
-        </div>
-        <div class="muted-note">Panels, accents, and the editor will adapt to your chosen theme.</div>
-      </div>
-    </div>
-
-    <div class="panel center">
-      <div class="big-art" id="bigArt">No track selected</div>
-      <div class="meta" style="margin-top:12px;text-align:center">
-        <div id="trackTitle" style="font-weight:600">—</div>
-        <div id="trackArtist" class="small">—</div>
-      </div>
-
-      <div class="controls">
-        <button id="prev">⏮</button>
-        <button id="playPause" class="btn-big">Play</button>
-        <button id="next">⏭</button>
-        <div style="flex:1"></div>
-        <button id="loop">Loop: All</button>
-        <button id="shuffle">Shuffle</button>
-      </div>
-
-      <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>
-      <div style="display:flex;justify-content:space-between;margin-top:8px;color:var(--muted)"><div id="currentTime">0:00</div><div id="duration">0:00</div></div>
-
-      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-        <label class="toggle"><input type="checkbox" id="enable8d"> 8D Sound</label>
-        <button id="editModeBtn">Editor Mode</button>
-        <div class="muted-note">(8D works for local audio files only due to browser restrictions)</div>
-      </div>
-
-      <canvas id="editor" style="display:none"></canvas>
-
-      <audio id="audio" preload="metadata"></audio>
-      <div id="youtubeContainer" style="display:none;margin-top:12px"></div>
-    </div>
-
-    <div class="panel right">
-      <h3>Playlist</h3>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <button id="addToPlaylist">+ Add selected</button>
-        <button id="clearPlaylist">Clear</button>
-        <button id="savePlaylist">Save</button>
-      </div>
-      <div class="playlist-list" id="playlistList"></div>
+  <!-- Publish Modal -->
+  <div id="publishModal">
+    <div class="modal-content">
+      <h3>Publish a Track</h3>
+      <input type="text" id="pubUploader" placeholder="Your display name">
+      <input type="text" id="pubTitle" placeholder="Track title">
+      <input type="text" id="pubUrl" placeholder="YouTube URL">
+      <textarea id="pubDesc" placeholder="Description (optional)"></textarea>
+      <button onclick="submitPublish()">Publish</button>
+      <button onclick="closePublishModal()">Cancel</button>
     </div>
   </div>
 
   <script>
-  // ----------------------------- Storage & DB (light) -----------------------------
-  const DB_NAME='mpDB', STORE='tracks'; let db=null;
-  function openDB(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME,1); r.onupgradeneeded=e=>{ e.target.result.createObjectStore(STORE,{keyPath:'id'}); }; r.onsuccess=e=>{ db=e.target.result; res(); }; r.onerror=e=>rej(e); }); }
-  function idbPut(obj){ return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(obj); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
-  function idbGetAll(){ return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readonly'); const rq=tx.objectStore(STORE).getAll(); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.remove('hidden');
+        if(tab.dataset.tab === 'community') loadCommunity();
+      });
+    });
 
-  // ----------------------------- UI refs & state -----------------------------
-  const fileInput=document.getElementById('fileInput'); const libraryList=document.getElementById('libraryList'); const playlistList=document.getElementById('playlistList');
-  const playPause=document.getElementById('playPause'); const prevBtn=document.getElementById('prev'); const nextBtn=document.getElementById('next');
-  const audio=document.getElementById('audio'); const bigArt=document.getElementById('bigArt'); const trackTitle=document.getElementById('trackTitle'); const trackArtist=document.getElementById('trackArtist');
-  const progress=document.getElementById('progress'); const progressBar=document.getElementById('progressBar'); const currentTimeEl=document.getElementById('currentTime'); const durationEl=document.getElementById('duration');
-  const addYoutubeBtn=document.getElementById('addYoutubeBtn'); const youtubeContainer=document.getElementById('youtubeContainer');
-  const enable8d=document.getElementById('enable8d'); const editModeBtn=document.getElementById('editModeBtn'); const editorCanvas=document.getElementById('editor');
-  const bgPreset=document.getElementById('bgPreset'); const customColors=document.getElementById('customColors'); const c1=document.getElementById('color1'), c2=document.getElementById('color2'), c3=document.getElementById('color3');
+    // Modal controls
+    function openPublishModal(){
+      document.getElementById('publishModal').style.display = 'flex';
+    }
+    function closePublishModal(){
+      document.getElementById('publishModal').style.display = 'none';
+    }
 
-  let library=[]; let playlist=[]; let currentIndex=-1; let playing=false; let loopMode='all'; let shuffle=false;
+    async function submitPublish(){
+      const uploader = document.getElementById('pubUploader').value;
+      const title = document.getElementById('pubTitle').value;
+      const url = document.getElementById('pubUrl').value;
+      const desc = document.getElementById('pubDesc').value;
+      const youtubeId = extractYoutubeId(url);
+      if(!youtubeId){ alert('Invalid YouTube URL'); return; }
+      const res = await fetch('/api/publish', {
+        method: 'POST', headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ youtubeId, title, uploader, description: desc })
+      });
+      if(res.ok){
+        alert('Published!');
+        closePublishModal();
+        loadCommunity();
+      } else {
+        alert('Error publishing');
+      }
+    }
 
-  // --------------- Background sync utilities ----------------
-  function setBackground(type){ let colors; switch(type){case 'red': colors=['#000000','#ff0000','#000000'];break;case 'green': colors=['#000000','#00ff00','#000000'];break;case 'gray': colors=['#000000','#888888','#000000'];break;case 'blue': colors=['#000000','#0000ff','#000000'];break;case 'purple': colors=['#000000','#800080','#000000'];break;case 'custom': colors=[c1.value,c2.value,c3.value];break;default: colors=['#071028','#071733'];}
-    document.documentElement.style.setProperty('--bg-colors', colors.join(','));
-    // accent pick: use middle color if present
-    const accent = colors[1]||colors[0]; document.documentElement.style.setProperty('--accent', accent);
-    // glass/panel tint
-    document.documentElement.style.setProperty('--panel', 'linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.45))');
-    document.documentElement.style.setProperty('--glass', `${colors[0]}22`);
-  }
-  bgPreset.addEventListener('change', ()=>{ if(bgPreset.value==='custom') customColors.style.display='block'; else customColors.style.display='none'; setBackground(bgPreset.value); localStorage.setItem('bgPreset', bgPreset.value); if(bgPreset.value==='custom') localStorage.setItem('customColors', JSON.stringify([c1.value,c2.value,c3.value])); });
-  [c1,c2,c3].forEach(i=>i.addEventListener('input', ()=>{ if(bgPreset.value==='custom') { setBackground('custom'); localStorage.setItem('customColors', JSON.stringify([c1.value,c2.value,c3.value])); }}));
-  window.addEventListener('DOMContentLoaded', ()=>{ const p=localStorage.getItem('bgPreset')||'default'; bgPreset.value=p; if(p==='custom'){ customColors.style.display='block'; const saved=JSON.parse(localStorage.getItem('customColors')||'["#000000","#ff0000","#000000"]'); [c1.value,c2.value,c3.value]=saved;} setBackground(p); });
+    function extractYoutubeId(url){
+      try {
+        const u = new URL(url);
+        if(u.hostname.includes('youtu.be')) return u.pathname.slice(1);
+        if(u.searchParams.get('v')) return u.searchParams.get('v');
+        return null;
+      } catch(e){ return null; }
+    }
 
-  // ----------------------------- Render functions -----------------------------
-  function renderLibrary(){ const q=document.getElementById('filter').value.toLowerCase(); libraryList.innerHTML=''; library.filter(t=> (t.name||'').toLowerCase().includes(q) ).forEach(t=>{ const el=document.createElement('div'); el.className='track'; el.dataset.id=t.id; el.innerHTML=`<div style="flex:1"><strong style="font-size:13px">${escapeHtml(t.name)}</strong><div class='small'>${t.type==='youtube'?'YouTube':'Local file'}</div></div>`; el.onclick=()=>{ if(!playlist.includes(t.id)) playlist.push(t.id); renderPlaylist(); }; libraryList.appendChild(el); }); }
-  function renderPlaylist(){ playlistList.innerHTML=''; playlist.forEach((id,idx)=>{ const t=library.find(x=>x.id===id); const el=document.createElement('div'); el.className='track'; if(idx===currentIndex) el.classList.add('active'); el.innerHTML=`<div style="flex:1"><strong style="font-size:13px">${escapeHtml(t? t.name:'Missing')}</strong><div class='small'>${t? t.type:''}</div></div><div><button data-id='${id}' class='remove'>✖</button></div>`; el.querySelector('.remove').onclick=(e)=>{ e.stopPropagation(); playlist=playlist.filter(x=>x!==id); if(currentIndex>=playlist.length) currentIndex=playlist.length-1; renderPlaylist(); }; el.onclick=()=>playIndex(idx); playlistList.appendChild(el); }); localStorage.setItem('mp_playlist', JSON.stringify(playlist)); }
+    async function loadCommunity(){
+      const r = await fetch('/api/songs');
+      const j = await r.json();
+      const list = document.getElementById('communityList');
+      list.innerHTML = '';
+      j.songs.forEach(song => {
+        const card = document.createElement('div');
+        card.className = 'song-card';
+        card.innerHTML = `
+          <div>
+            <b>${song.title}</b><br>
+            <small>by ${song.uploader}</small>
+          </div>
+          <div>
+            <button onclick="heartSong('${song._id}')">❤️ ${song.hearts}</button>
+            <button onclick="addToPlaylist('${song.youtubeId}', '${song.title}')">➕</button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
 
-  function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+    async function heartSong(id){
+      const r = await fetch(`/api/heart/${id}`, { method: 'POST' });
+      const j = await r.json();
+      loadCommunity();
+    }
 
-  // ----------------------------- Loading & adding tracks -----------------------------
-  fileInput.addEventListener('change', async e=>{ if(e.target.files.length) await addFiles(e.target.files); e.target.value=''; });
-  async function addFiles(files){ for(const f of files){ const id=genId(); const arr=await f.arrayBuffer(); const blob=new Blob([arr],{type:f.type}); const track={id,name:f.name,type:'file',blob}; await idbPut(track); } await loadLibrary(); }
-
-  addYoutubeBtn.addEventListener('click', ()=>{ const url=prompt('Paste YouTube URL'); if(!url) return; const id=parseYouTubeId(url); if(!id) return alert('Invalid YouTube URL'); const tid=genId(); idbPut({id:tid,name:'YouTube: '+id,type:'youtube',youtubeId:id}).then(()=>loadLibrary()); });
-
-  function parseYouTubeId(url){ try{ const u=new URL(url.includes('://')?url:'https://'+url); if(u.hostname.includes('youtu')){ if(u.hostname==='youtu.be') return u.pathname.slice(1); const p=u.searchParams.get('v'); if(p) return p; const m=u.pathname.match(/embed\/(.+)/); if(m) return m[1]; } }catch(e){} return null; }
-
-  async function loadLibrary(){ library=await idbGetAll(); const saved=JSON.parse(localStorage.getItem('mp_playlist')||'[]'); playlist=saved; renderLibrary(); renderPlaylist(); }
-
-  // ----------------------------- Playback -----------------------------
-  function genId(){ return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8); }
-
-  async function playIndex(idx){ if(idx<0||idx>=playlist.length) return; currentIndex=idx; const id=playlist[idx]; const track=library.find(t=>t.id===id); if(!track){ alert('Track missing'); return; } // UI
-    Array.from(playlistList.children).forEach((c,i)=>c.classList.toggle('active', i===currentIndex)); trackTitle.textContent=track.name; trackArtist.textContent=track.type==='youtube'?'YouTube':'Local file'; bigArt.textContent=track.name;
-    // stop youtube
-    youtubeContainer.style.display='none'; if(track.type==='file'){ const url=URL.createObjectURL(track.blob); audio.src=url; audio.play(); playing=true; playPause.textContent='Pause'; } else { audio.pause(); audio.src=''; youtubeContainer.style.display='block'; youtubeContainer.innerHTML='<div style="padding:12px;background:rgba(0,0,0,0.4);border-radius:6px">YouTube playback inside iframe. 8D unavailable for YouTube.</div>'; playing=false; playPause.textContent='Play'; }
-  }
-
-  playPause.addEventListener('click', ()=>{ if(!audio.src){ if(playlist.length) playIndex(0); else return; } if(audio.paused){ audio.play(); playing=true; playPause.textContent='Pause'; } else { audio.pause(); playing=false; playPause.textContent='Play'; } });
-  nextBtn.addEventListener('click', ()=>{ if(shuffle){ currentIndex=Math.floor(Math.random()*playlist.length); playIndex(currentIndex); return; } if(currentIndex+1<playlist.length) playIndex(currentIndex+1); else if(loopMode==='all') playIndex(0); else { audio.pause(); playing=false; playPause.textContent='Play'; } });
-  prevBtn.addEventListener('click', ()=>{ if(currentIndex>0) playIndex(currentIndex-1); else playIndex(0); });
-
-  audio.addEventListener('timeupdate', ()=>{ const p=(audio.currentTime/audio.duration||0)*100; progressBar.style.width=p+'%'; currentTimeEl.textContent=formatTime(audio.currentTime); durationEl.textContent=formatTime(audio.duration||0); });
-  audio.addEventListener('ended', ()=>{ if(loopMode==='one') { audio.currentTime=0; audio.play(); } else nextBtn.click(); });
-  progress.addEventListener('click', e=>{ const r=progress.getBoundingClientRect(); const pct=(e.clientX-r.left)/r.width; if(audio.duration) audio.currentTime=pct*audio.duration; });
-
-  function formatTime(s){ if(!s&&!s!==0) return '0:00'; s=Math.floor(s||0); const m=Math.floor(s/60); const ss=s%60; return m+':'+String(ss).padStart(2,'0'); }
-
-  // ----------------------------- Web Audio API / 8D -----------------------------
-  let audioCtx=null, sourceNode=null, panner=null, analyser=null; let rafId=null;
-  let editorDataKey='mp_8d_patterns'; // per library track patterns stored here
-  const editorState = {points:[], editing:false};
-
-  function ensureAudioContext(){ if(audioCtx) return; audioCtx=new (window.AudioContext||window.webkitAudioContext)(); sourceNode=audioCtx.createMediaElementSource(audio); panner=audioCtx.createStereoPanner(); analyser=audioCtx.createAnalyser(); sourceNode.connect(panner).connect(analyser).connect(audioCtx.destination); analyser.fftSize=256; }
-
-  // Editor drawing and interaction
-  const c=editorCanvas; const ctx=c.getContext('2d'); let playheadX=0;
-  function resizeCanvas(){ c.width=c.clientWidth*devicePixelRatio; c.height=c.clientHeight*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); drawEditor(); }
-  window.addEventListener('resize', resizeCanvas);
-
-  function drawEditor(){ // background
-    ctx.clearRect(0,0,c.width, c.height);
-    const w=c.clientWidth, h=c.clientHeight;
-    // gradient background from theme
-    const cssGrad = getComputedStyle(document.documentElement).getPropertyValue('--bg-colors');
-    const g = ctx.createLinearGradient(0,0,w,0); const cols = cssGrad.split(',').map(s=>s.trim()); g.addColorStop(0, cols[0]||'#000'); g.addColorStop(0.5, cols[1]||cols[0]||'#000'); g.addColorStop(1, cols[2]||cols[1]||cols[0]||'#000'); ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-    // grid lines
-    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; for(let i=0;i<=4;i++){ const y=i*(h/4); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
-    // draw points
-    editorState.points.forEach(p=>{ const x=p.t*w; const y=(1-(p.pan+1)/2)*h; ctx.beginPath(); ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=2; ctx.arc(x,y,8,0,Math.PI*2); ctx.fill(); ctx.stroke(); });
-    // playhead
-    ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.moveTo(playheadX*w,0); ctx.lineTo(playheadX*w,h); ctx.stroke();
-  }
-
-  function canvasPosToPoint(px,py){ const w=c.clientWidth,h=c.clientHeight; const t=Math.max(0,Math.min(1,px/w)); const pan= (1 - (py/h))*2 -1; return {t,pan}; }
-
-  let dragIndex=null;
-  c.addEventListener('mousedown', e=>{ if(!editorState.editing) return; const rect=c.getBoundingClientRect(); const x=e.clientX-rect.left; const y=e.clientY-rect.top; // check if clicked existing
-    const w=c.clientWidth,h=c.clientHeight; let found=false; editorState.points.forEach((p,i)=>{ const px=p.t*w, py=(1-(p.pan+1)/2)*h; if(Math.hypot(px-x,py-y)<12){ dragIndex=i; found=true; } }); if(!found){ // add new
-      const p=canvasPosToPoint(x,y); editorState.points.push(p); editorState.points.sort((a,b)=>a.t-b.t); saveEditorPattern(); drawEditor(); }
-  });
-  window.addEventListener('mousemove', e=>{ if(dragIndex===null) return; const rect=c.getBoundingClientRect(); const x=e.clientX-rect.left, y=e.clientY-rect.top; editorState.points[dragIndex]=canvasPosToPoint(x,y); editorState.points.sort((a,b)=>a.t-b.t); saveEditorPattern(); drawEditor(); });
-  window.addEventListener('mouseup', ()=>{ dragIndex=null; });
-  c.addEventListener('dblclick', e=>{ const rect=c.getBoundingClientRect(); const x=e.clientX-rect.left, y=e.clientY-rect.top; const w=c.clientWidth,h=c.clientHeight; editorState.points = editorState.points.filter(p=> Math.hypot(p.t*w - x, (1-(p.pan+1)/2)*h - y) > 12 ); saveEditorPattern(); drawEditor(); });
-
-  // schedule panning automation when playing
-  function schedulePanAutomation(){ if(!audioCtx || !panner) return; // clear previous
-    // if pattern points exist, use linear ramps
-    const pattern = editorState.points.slice(); if(pattern.length===0){ // default auto-rotate via RAF
-      cancelPanRAF(); startPanRAF(); return; }
-    cancelPanRAF(); // use AudioParam automation if supported
-    const param = panner.pan; const now = audioCtx.currentTime; // remove previous scheduled values by cancelling and setting current
-    param.cancelScheduledValues(now);
-    // compute absolute times based on current audio.currentTime and duration
-    const dur = audio.duration||10; const base = now - audio.currentTime;
-    // evaluate value curve by interpolating between points
-    // set initial value
-    const firstTime = base + pattern[0].t*dur; param.setValueAtTime(pattern[0].pan, Math.max(now, firstTime - 0.01));
-    for(let i=1;i<pattern.length;i++){ const tAbs = base + pattern[i].t*dur; param.linearRampToValueAtTime(pattern[i].pan, tAbs); }
-    // after last point, if loop mode, ramp back to first across end
-    // schedule nothing else; when audio plays and seeks the param will follow scheduled ramps
-  }
-
-  let panRAF=null; function startPanRAF(){ if(panRAF) return; const speed=0.8; let start=audioCtx?audioCtx.currentTime:0; function step(){ const t=(performance.now()/1000)*speed; const pan=Math.sin(t)*0.9; if(panner && audioCtx) panner.pan.setValueAtTime(pan, audioCtx.currentTime); panRAF=requestAnimationFrame(step); } panRAF=requestAnimationFrame(step); }
-  function cancelPanRAF(){ if(panRAF){ cancelAnimationFrame(panRAF); panRAF=null; } }
-
-  enable8d.addEventListener('change', ()=>{ if(enable8d.checked){ // enable audio context
-      if(!audio.src){ alert('Play a local track first'); enable8d.checked=false; return; } // check current track
-      const track=library.find(t=>t.id===playlist[currentIndex]); if(track && track.type==='youtube'){ alert('8D not available for YouTube due to browser restrictions.'); enable8d.checked=false; return; }
-      ensureAudioContext(); audioCtx.resume(); schedulePanAutomation(); drawEditor(); editorCanvas.style.display=editModeBtn.classList.contains('active')?'block':'none';
-    } else { // disable
-      cancelPanRAF(); if(panner && audioCtx) panner.pan.setValueAtTime(0, audioCtx.currentTime); editorCanvas.style.display='none'; }
-  });
-
-  editModeBtn.addEventListener('click', ()=>{ editorState.editing=!editorState.editing; if(editorState.editing){ editModeBtn.classList.add('active'); editorCanvas.style.display='block'; resizeCanvas(); } else { editModeBtn.classList.remove('active'); editorCanvas.style.display='none'; } });
-
-  // save/load pattern per track
-  function saveEditorPattern(){ if(currentIndex<0) return; const key = editorDataKey+'_'+playlist[currentIndex]; localStorage.setItem(key, JSON.stringify(editorState.points)); }
-  function loadEditorPatternForCurrent(){ editorState.points=[]; if(currentIndex<0) return; const key = editorDataKey+'_'+playlist[currentIndex]; const s=localStorage.getItem(key); if(s) editorState.points=JSON.parse(s); }
-
-  audio.addEventListener('play', ()=>{ if(enable8d.checked) schedulePanAutomation(); });
-  audio.addEventListener('seeked', ()=>{ if(enable8d.checked) schedulePanAutomation(); });
-
-  // simple pan visual updater for playhead
-  function updatePlayhead(){ const dur=audio.duration||1; playheadX = (audio.currentTime/dur)||0; drawEditor(); requestAnimationFrame(updatePlayhead); }
-  audio.addEventListener('play', ()=>{ requestAnimationFrame(updatePlayhead); });
-
-  // ----------------------------- Init & glue -----------------------------
-  async function init(){ await openDB(); await loadLibrary(); // restore bg
-    const p=localStorage.getItem('bgPreset')||'default'; bgPreset.value=p; if(p==='custom'){ customColors.style.display='block'; const saved=JSON.parse(localStorage.getItem('customColors')||'["#000000","#ff0000","#000000"]'); [c1.value,c2.value,c3.value]=saved;} setBackground(p);
-    // editor size
-    resizeCanvas();
-  }
-  init();
-
-  // helper: when track changes, load pattern
-  audio.addEventListener('loadedmetadata', ()=>{ loadEditorPatternForCurrent(); drawEditor(); });
-
-  // small UI helpers
-  document.getElementById('clearPlaylist').addEventListener('click', ()=>{ if(confirm('Clear playlist?')){ playlist=[]; currentIndex=-1; renderPlaylist(); } });
-  document.getElementById('savePlaylist').addEventListener('click', ()=>{ localStorage.setItem('mp_playlist', JSON.stringify(playlist)); alert('Playlist saved'); });
-  document.getElementById('addToPlaylist').addEventListener('click', ()=>{ alert('Click items in the library to add them to the playlist'); });
-  document.getElementById('saveExport').addEventListener('click', async ()=>{ const all=await idbGetAll(); const out={library:all.map(t=>({id:t.id,name:t.name,type:t.type,youtubeId:t.youtubeId})), playlist}; const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='mp-export.json'; a.click(); });
-
-  // simple library load on startup
-  document.getElementById('filter').addEventListener('input', renderLibrary);
-
-  // helper functions used earlier but declared later to keep code compact
-  function parseYouTubeId(url){ try{ const u=new URL(url.includes('://')?url:'https://'+url); if(u.hostname.includes('youtu')){ if(u.hostname==='youtu.be') return u.pathname.slice(1); const p=u.searchParams.get('v'); if(p) return p; const m=u.pathname.match(/embed\/(.+)/); if(m) return m[1]; } }catch(e){} return null; }
-
-  function idbGetAll(){ return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readonly'); const rq=tx.objectStore(STORE).getAll(); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }); }
-
-  // load pattern when a playlist item is played
-  // expose function to play index when playlist is clicked
-  function playIndexHandler(i){ playIndex(i); loadEditorPatternForCurrent(); }
-
-  // small binding: when clicking library items we already add to playlist; but also allow clicking playlist to play
-  playlistList.addEventListener('click', e=>{ const el=e.target.closest('.track'); if(!el) return; const idx = Array.from(playlistList.children).indexOf(el); playIndex(idx); loadEditorPatternForCurrent(); });
-
-  // on audio load revoke object URLs to avoid leak
-  audio.addEventListener('loadeddata', ()=>{ // no-op for now
-  });
-
-  // utility escape
-  function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+    function addToPlaylist(youtubeId, title){
+      let pl = JSON.parse(localStorage.getItem('playlist')||'[]');
+      pl.push({ type:'youtube', youtubeId, title });
+      localStorage.setItem('playlist', JSON.stringify(pl));
+      alert(`${title} added to your playlist`);
+    }
   </script>
 </body>
 </html>
